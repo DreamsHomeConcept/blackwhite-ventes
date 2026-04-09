@@ -679,7 +679,7 @@ var EMAILJS_TPL  = "template_pfyi6k4";
 var EMAILJS_KEY  = "VVnLOe-0_mDMIvcfO";
 if (typeof emailjs !== "undefined") emailjs.init(EMAILJS_KEY);
 
-var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzc_rPxT6T03o41Bb3PuCqvIWpydq6hDqunVrEotvIS4R9sKoKi34sM08mJG3NT46KN/exec";
+var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx6jKkknqy1EKvV2XDd9w8V6LehbkBrZVldd15vajhm734SGy8QX_9I5oEqTbxN57WbHA/exec";
 
 var today = new Date().toISOString().split("T")[0];
 var panier = []; // articles temporaires du client en cours
@@ -874,6 +874,11 @@ function peuplerSelectCoiffeurs() {
 
 peuplerSelectPrestations();
 peuplerSelectCoiffeurs();
+// S'assurer que la date est bien initialisée (fix mobile)
+(function() {
+  var el = document.getElementById("inputDate");
+  if (el && !el.value) el.value = today;
+})();
 
 // ============================================================
 // FORMULAIRE
@@ -1087,8 +1092,28 @@ function validerCoiffeur() {
 // ============================================================
 function fmtDate(d) {
   if (!d) return "";
-  var p = d.split("-");
+  // Normaliser : couper la partie T si date ISO complète (ex: "2026-04-08T22:00:00.000Z")
+  var clean = String(d).split("T")[0];
+  // Gérer aussi les dates JS (objets Date ou timestamps)
+  if (clean.indexOf("-") === -1) {
+    var dt = new Date(d);
+    if (!isNaN(dt)) clean = dt.toISOString().split("T")[0];
+    else return String(d);
+  }
+  var p = clean.split("-");
+  if (p.length < 3) return String(d);
   return p[2] + "/" + p[1] + "/" + p[0];
+}
+
+// Normalise une date en YYYY-MM-DD quelle que soit la forme reçue
+function normalizeDate(d) {
+  if (!d) return "";
+  var s = String(d);
+  if (s.indexOf("T") !== -1) return s.split("T")[0];
+  if (s.match(/^\d{4}-\d{2}-\d{2}$/)) return s;
+  var dt = new Date(s);
+  if (!isNaN(dt)) return dt.toISOString().split("T")[0];
+  return s;
 }
 
 function badgeClass(p) {
@@ -1737,6 +1762,7 @@ function chargerGoogleSheets() {
           v.prix    = parseFloat(v.prix) || 0;
           v.qte     = parseInt(v.qte) || 1;
           v.montant = parseFloat(v.montant) || 0;
+          v.date    = normalizeDate(v.date);
         });
         ventes = ventes.concat(nouvelles);
         lsSet("bw_ventes", ventes);
@@ -1773,6 +1799,7 @@ function restaurerDepuisSheets() {
     v.prix    = parseFloat(v.prix) || 0;
     v.qte     = parseInt(v.qte) || 1;
     v.montant = parseFloat(v.montant) || 0;
+    v.date    = normalizeDate(v.date);
   });
   ventes = _donneesSheet;
   lsSet("bw_ventes", ventes);
